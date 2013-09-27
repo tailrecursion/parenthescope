@@ -1,25 +1,33 @@
 (ns tailrecursion.parenthescope
   (:require [fipp.printer :as p :refer [defprinter]]
-            [clojure.zip :as z])
+            [clojure.zip :as z]
+            [tailrecursion.javelin-clj :refer [cell]])
   (:import (javax.swing JFrame JPanel JTextArea)
            (java.awt Font Color)
            javax.swing.text.DefaultHighlighter$DefaultHighlightPainter
            java.io.Writer
-           javax.swing.text.DefaultHighlighter))
+           javax.swing.text.DefaultHighlighter
+           java.util.WeakHashMap))
 
-(def text (doto (JTextArea.)
-            (.setEditable false)
-            (.setFont (Font. Font/MONOSPACED Font/PLAIN 18))))
+(def ^:mutable
+  text (doto (JTextArea.)
+         (.setEditable false)
+         (.setFont (Font. Font/MONOSPACED Font/PLAIN 16))))
 
-(def delims {"\uFFFE" :start "\uFFFF" :end})
+(def ^:mutable
+  object->idx (WeakHashMap.))
 
-(defn text-writer [text atm]
+(def ^:mutable
+  idx->object (atom {}))
+
+(defn assoc-in! [^WeakHashMap m [k & ks] v]
+  (doto m (.put k (assoc-in (.get m k) ks v))))
+
+(defn text-writer [text]
   (proxy [Writer] []
     (write [x]
       (condp = (class x)
-        String (if (delims x)
-                 (swap! atm assoc-in [(delims x)] (.length (.getText text)))
-                 (.append text x))
+        String (.append text x)
         Integer (.append text (str (char x)))
         (throw (UnsupportedOperationException. (str "can't write " (class x))))))
     (flush [])
@@ -33,114 +41,148 @@
     (.setLocationByPlatform true)
     (.setVisible true)))
 
-(def point (atom nil))
+(defmethod fipp.printer/serialize-node :call [[_ f]]
+  [{:op :pass, :text (reify Object (toString [_] (f) ""))}])
 
-(defn track [printed obj]
-  (if (identical? @point obj)
-    [:group [:pass "\uFFFE"] printed [:pass "\uFFFF"]]
-    printed))
+(defmulti pp first)
 
-(defmulti pp (comp name first))
+(defn start! [obj]
+  (let [point (.length (.getText text))]
+    (assoc-in! object->idx [obj :start] point)
+    point))
 
-(defmethod pp "symbol" [[_ s :as obj]]
-  (track [:text s] obj))
+(defn end! [start obj]
+  (let [point (.length (.getText text))]
+    (assoc-in! object->idx [obj :end] point)
+    ;; TODO fix idx->object mapping, layering
+    (swap! idx->object
+           (partial merge-with (fnil conj []))
+           (into {} (map vector (range start point) (repeat obj))))))
 
-(defmethod pp "long" [[_ s :as obj]]
-  (track [:text s] obj))
+(defmethod pp 'symbol [[_ s :as obj]]
+  (let [start (promise)]
+    [:group
+     [:call #(deliver start (start! obj))]
+     [:text s]
+     [:call #(end! @start obj)]]))
 
-(defmethod pp "char" [[_ s :as obj]]
-  (track [:text (str "\\" s)] obj))
+(defmethod pp 'long [[_ s :as obj]]
+  (let [start (promise)]
+    [:group
+     [:call #(deliver start (start! obj))]
+     [:text s]
+     [:call #(end! @start obj)]]))
 
-(defmethod pp "list" [[_ & contents :as obj]]
-  (track
-   [:group (concat [[:text "("]]
-                   (interpose :line (map pp contents))
-                   [[:text ")"]])]
-   obj))
+(defmethod pp 'char [[_ s :as obj]]
+  (let [start (promise)]
+    [:group
+     [:call #(deliver start (start! obj))]
+     [:text (str "\\" s)]
+     [:call #(end! @start obj)]]))
 
-(defmethod pp "vector" [[_ & contents :as obj]]
-  (track
-   [:group (concat [[:text "["]]
-                   (interpose :line (map pp contents))
-                   [[:text "]"]])]
-   obj))
+(defn pp-coll [l r obj contents]
+  (let [start (promise)]
+    [:group (concat [[:call #(deliver start (start! obj))]
+                     [:text l]]
+                    (interpose :line (map pp contents))
+                    [[:text r]
+                     [:call #(end! @start obj)]])]))
+
+(defmethod pp 'list [[_ & contents :as obj]]
+  (pp-coll "(" ")" obj contents))
+
+(defmethod pp 'vector [[_ & contents :as obj]]
+  (pp-coll "[" "]" obj contents))
 
 (defprinter pprint pp {:width 80})
 
-(def orange
-  (DefaultHighlighter$DefaultHighlightPainter. Color/ORANGE))
-
-(defn refresh! [text code]
-  (let [selection (atom {})
+(defn highlight! [{:keys [start end]}]
+  (let [orange (DefaultHighlighter$DefaultHighlightPainter. Color/ORANGE)
         hl (.getHighlighter text)]
     (.removeAllHighlights hl)
-    (.setText text nil)
-    (binding [*out* (text-writer text selection)]
-      (pprint code))
-    (.addHighlight hl (:start @selection) (:end @selection) orange)))
+    (.addHighlight hl start end orange)))
 
 (defn code-zip
   [root]
-  (z/zipper (comp boolean #{'clj/list 'clj/vector} first)
+  (z/zipper (comp boolean '#{list vector} first)
             rest
             concat
             root))
 
-;; (defn pid! []
-;;   (->> (.. java.lang.management.ManagementFactory getRuntimeMXBean getName) 
-;;        (take-while (partial not= \@))
-;;        (apply str))
+(def demo-code
+  '(list
+    (list
+     (symbol "defn")
+     (symbol "pid!")
+     (vector)
+     (list
+      (symbol "->>")
+      (list
+       (symbol "..")
+       (symbol "java.lang.management.ManagementFactory")
+       (symbol "getRuntimeMXBean")
+       (symbol "getName"))
+      (list
+       (symbol "take-while")
+       (list
+        (symbol "partial")
+        (symbol "not=")
+        (char "@")))
+      (list
+       (symbol "apply")
+       (symbol "str"))))
+    (list
+     (symbol "defn")
+     (symbol "pid!")
+     (vector)
+     (list
+      (symbol "->>")
+      (list
+       (symbol "..")
+       (symbol "java.lang.management.ManagementFactory")
+       (symbol "getRuntimeMXBean")
+       (symbol "getName"))
+      (list
+       (symbol "take-while")
+       (list
+        (symbol "partial")
+        (symbol "not=")
+        (char "@")))
+      (list
+       (symbol "apply")
+       (symbol "str"))))
+    (list
+     (symbol "defn")
+     (symbol "pid!")
+     (vector)
+     (list
+      (symbol "->>")
+      (list
+       (symbol "..")
+       (symbol "java.lang.management.ManagementFactory")
+       (symbol "getRuntimeMXBean")
+       (symbol "getName"))
+      (list
+       (symbol "take-while")
+       (list
+        (symbol "partial")
+        (symbol "not=")
+        (char "@")))
+      (list
+       (symbol "apply")
+       (symbol "str"))))))
 
 (def code
-  (atom
-   (code-zip
-    '(clj/list
-      (clj/symbol "defn")
-      (clj/symbol "pid!")
-      (clj/vector)
-      (clj/list
-       (clj/symbol "->>")
-       (clj/list
-        (clj/symbol "..")
-        (clj/symbol "java.lang.management.ManagementFactory")
-        (clj/symbol "getRuntimeMXBean")
-        (clj/symbol "getName"))
-       (clj/list
-        (clj/symbol "take-while")
-        (clj/list
-         (clj/symbol "partial")
-         (clj/symbol "not=")
-         (clj/char "@")))
-       (clj/list
-        (clj/symbol "apply")
-        (clj/symbol "str")))))))
-
-(defn init! []
-  (reset! point (z/root @code))
-  (refresh! text (z/root @code)))
+  (atom (code-zip demo-code)))
 
 (defn nav! [f]
-  (swap! code f)
-  (reset! point (z/node @code))
-  (refresh! text (z/root @code)))
+  (highlight! (get object->idx (z/node (swap! code f)))))
 
-(comment
+(defn demo []
   (show text)
-  (init!)
-  (doseq [f [z/down
-             z/right
-             z/right
-             z/right
-             z/down
-             z/right
-             z/down
-             z/right
-             z/left
-             z/up
-             z/up
-             z/up]]
-    (println f)
-    (nav! f)
-    (Thread/sleep 200))
-
-  )
+  (let [tw (text-writer text)]
+    (binding [*out* tw] (pprint (z/root @code)))
+    (highlight! (get object->idx (z/root @code)))
+    (doseq [f [z/down z/rightmost z/left z/down z/right z/right z/right z/up z/up]]
+      (Thread/sleep 400)
+      (nav! f))))
