@@ -2,13 +2,14 @@
   (:require [fipp.printer :as p :refer [defprinter]]
             [clojure.zip :as z])
   (:import (javax.swing JFrame JPanel JTextArea)
+           (java.awt Font Color)
            javax.swing.text.DefaultHighlighter$DefaultHighlightPainter
-           java.awt.Color
            java.io.Writer
            javax.swing.text.DefaultHighlighter))
 
 (def text (doto (JTextArea.)
-            (.setEditable false)))
+            (.setEditable false)
+            (.setFont (Font. Font/MONOSPACED Font/PLAIN 18))))
 
 (def delims {"\uFFFE" :start "\uFFFF" :end})
 
@@ -47,11 +48,21 @@
 (defmethod pp "long" [[_ s :as obj]]
   (track [:text s] obj))
 
+(defmethod pp "char" [[_ s :as obj]]
+  (track [:text (str "\\" s)] obj))
+
 (defmethod pp "list" [[_ & contents :as obj]]
   (track
    [:group (concat [[:text "("]]
                    (interpose :line (map pp contents))
                    [[:text ")"]])]
+   obj))
+
+(defmethod pp "vector" [[_ & contents :as obj]]
+  (track
+   [:group (concat [[:text "["]]
+                   (interpose :line (map pp contents))
+                   [[:text "]"]])]
    obj))
 
 (defprinter pprint pp {:width 80})
@@ -70,18 +81,39 @@
 
 (defn code-zip
   [root]
-  (z/zipper (comp boolean #{'clj/list} first)
+  (z/zipper (comp boolean #{'clj/list 'clj/vector} first)
             rest
             concat
             root))
+
+;; (defn pid! []
+;;   (->> (.. java.lang.management.ManagementFactory getRuntimeMXBean getName) 
+;;        (take-while (partial not= \@))
+;;        (apply str))
 
 (def code
   (atom
    (code-zip
     '(clj/list
-      (clj/symbol "+")
-      (clj/long "1")
-      (clj/long "2")))))
+      (clj/symbol "defn")
+      (clj/symbol "pid!")
+      (clj/vector)
+      (clj/list
+       (clj/symbol "->>")
+       (clj/list
+        (clj/symbol "..")
+        (clj/symbol "java.lang.management.ManagementFactory")
+        (clj/symbol "getRuntimeMXBean")
+        (clj/symbol "getName"))
+       (clj/list
+        (clj/symbol "take-while")
+        (clj/list
+         (clj/symbol "partial")
+         (clj/symbol "not=")
+         (clj/char "@")))
+       (clj/list
+        (clj/symbol "apply")
+        (clj/symbol "str")))))))
 
 (defn init! []
   (reset! point (z/root @code))
@@ -93,38 +125,22 @@
   (refresh! text (z/root @code)))
 
 (comment
-
   (show text)
   (init!)
-  (doseq [f [z/down z/right z/right z/up]]
+  (doseq [f [z/down
+             z/right
+             z/right
+             z/right
+             z/down
+             z/right
+             z/down
+             z/right
+             z/left
+             z/up
+             z/up
+             z/up]]
+    (println f)
     (nav! f)
-    (Thread/sleep 1000))
+    (Thread/sleep 200))
 
   )
-
-;; (comment
-;;   (defn pid! []
-;;     (->> (.. java.lang.management.ManagementFactory getRuntimeMXBean getName) 
-;;          (take-while (partial not= \@))
-;;          (apply str)))
-;;   (clj/list
-;;    (clj/symbol "defn")
-;;    (clj/symbol "pid!")
-;;    (clj/vector)
-;;    (clj/list
-;;     (clj/symbol "->>")
-;;     (clj/list
-;;      (clj/symbol "..")
-;;      (clj/symbol "java.lang.management.ManagementFactory")
-;;      (clj/symbol "getRuntimeMXBean")
-;;      (clj/symbol "getName"))
-;;     (clj/list
-;;      (clj/symbol "take-while")
-;;      (clj/list
-;;       (clj/symbol "partial")
-;;       (clj/symbol "not=")
-;;       (clj/char "\@")))
-;;     (clj/list
-;;      (clj/symbol "apply")
-;;      (clj/symbol "str"))))
-;;   )
