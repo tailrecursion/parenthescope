@@ -172,7 +172,18 @@
   ;; todo: write to stringbuffer or similar and setText on init
   (time (binding [*out* tw] (pprint (z/root @code))))
   (highlight! (get object->idx (z/root @code)))
-  (doseq [f [z/down z/rightmost z/left z/down z/right z/right z/right z/up z/up]]
+  (doseq [f [z/down
+             z/down
+             z/rightmost
+             z/down
+             z/right
+             z/right
+             z/down
+             z/right
+             z/up
+             z/up
+             z/up
+             z/up]]
     (Thread/sleep 400)
     (println f)
     (nav! f)))
