@@ -40,6 +40,9 @@
 (defmethod serialize-node :pass [[_ & text]]
   [{:op :pass, :text (apply str text)}])
 
+(defmethod serialize-node :call [[_ f]]
+  [{:op :call, :fn f}])
+
 (defmethod serialize-node :span [[_ & children]]
   (serialize children))
 
@@ -167,7 +170,9 @@
                 (let [state* (update-in state [:column] + (count text))]
                   [state* [text]])))
           :pass
-            [state [(str (:text node))]]
+          [state [(:text node)]]
+          :call
+          (do ((:fn node)) [state ""])
           :line
             (if (zero? fits)
               (let [state* (assoc state :length (- (+ right *width*) indent)

@@ -14,11 +14,9 @@
          (.setEditable false)
          (.setFont (Font. Font/MONOSPACED Font/PLAIN 16))))
 
-(def ^:mutable
-  object->idx (WeakHashMap.))
+(def ^:mutable object->idx (WeakHashMap.))
 
-(def ^:mutable
-  idx->object (atom {}))
+(def ^:mutable idx->object (atom {}))
 
 (defn assoc-in! [^WeakHashMap m [k & ks] v]
   (doto m (.put k (assoc-in (.get m k) ks v))))
@@ -41,9 +39,6 @@
     (.setLocationByPlatform true)
     (.setVisible true)))
 
-(defmethod fipp.printer/serialize-node :call [[_ f]]
-  [{:op :pass, :text (reify Object (toString [_] (f) ""))}])
-
 (defmulti pp first)
 
 (defn start! [obj]
@@ -59,34 +54,28 @@
            (partial merge-with (fnil conj []))
            (into {} (map vector (range start point) (repeat obj))))))
 
+(defmacro relate [representation obj]
+  `(let [obj# ~obj, start# (promise)]
+     [:group
+      [:call #(deliver start# (start! obj#))]
+      ~representation
+      [:call #(end! @start# obj#)]]))
+
 (defmethod pp 'symbol [[_ s :as obj]]
-  (let [start (promise)]
-    [:group
-     [:call #(deliver start (start! obj))]
-     [:text s]
-     [:call #(end! @start obj)]]))
+  (relate [:text s] obj))
 
 (defmethod pp 'long [[_ s :as obj]]
-  (let [start (promise)]
-    [:group
-     [:call #(deliver start (start! obj))]
-     [:text s]
-     [:call #(end! @start obj)]]))
+  (relate [:text s] obj))
 
 (defmethod pp 'char [[_ s :as obj]]
-  (let [start (promise)]
-    [:group
-     [:call #(deliver start (start! obj))]
-     [:text (str "\\" s)]
-     [:call #(end! @start obj)]]))
+  (relate [:text (str "\\" s)] obj))
 
 (defn pp-coll [l r obj contents]
-  (let [start (promise)]
-    [:group (concat [[:call #(deliver start (start! obj))]
-                     [:text l]]
-                    (interpose :line (map pp contents))
-                    [[:text r]
-                     [:call #(end! @start obj)]])]))
+  (relate
+   [:group (concat [[:text l]]
+                   (interpose :line (map pp contents))
+                   [[:text r]])]
+   obj))
 
 (defmethod pp 'list [[_ & contents :as obj]]
   (pp-coll "(" ")" obj contents))
@@ -172,17 +161,18 @@
        (symbol "apply")
        (symbol "str"))))))
 
-(def code
-  (atom (code-zip demo-code)))
+(def ^:mutable code (atom (code-zip demo-code)))
 
 (defn nav! [f]
   (highlight! (get object->idx (z/node (swap! code f)))))
 
 (defn demo []
   (show text)
-  (let [tw (text-writer text)]
-    (binding [*out* tw] (pprint (z/root @code)))
-    (highlight! (get object->idx (z/root @code)))
-    (doseq [f [z/down z/rightmost z/left z/down z/right z/right z/right z/up z/up]]
-      (Thread/sleep 400)
-      (nav! f))))
+  (def tw (text-writer text))
+  ;; todo: write to stringbuffer or similar and setText on init
+  (time (binding [*out* tw] (pprint (z/root @code))))
+  (highlight! (get object->idx (z/root @code)))
+  (doseq [f [z/down z/rightmost z/left z/down z/right z/right z/right z/up z/up]]
+    (Thread/sleep 400)
+    (println f)
+    (nav! f)))
