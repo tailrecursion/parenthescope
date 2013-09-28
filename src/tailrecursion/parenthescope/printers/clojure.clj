@@ -1,6 +1,6 @@
 (ns tailrecursion.parenthescope.printers.clojure
   (:require [fipp.printer :refer [pprint-document]]
-            [tailrecursion.parenthescope.printers :refer [PagingBuffer none]])
+            [tailrecursion.parenthescope.printers :refer [make-buffer]])
   (:import java.util.WeakHashMap
            java.io.StringWriter))
 
@@ -58,15 +58,6 @@
 
 (def defaults {:width 80})
 
-(defn make-buffer [s index bounds]
-  (reify
-    PagingBuffer
-    (object [_ point] (first (get index point)))
-    (bounds [_ o] (get bounds o))
-    (page [_ start max])
-    Object
-    (toString [_] s)))
-
 (defn print-clojure [code & [options]]
   (let [sw (StringWriter.)
         countfn #(.length (str sw))
@@ -78,3 +69,11 @@
               *out* sw]
       (pprint-document (pprint code) (merge options defaults))
       (make-buffer (str sw) @index bounds))))
+
+(comment
+  (require '[clojure.pprint :as pp])
+  (require '[tailrecursion.parenthescope.printers :refer [object bounds page]])
+  (def code '(list (symbol "+") (long "1") (long "2")))
+  (def b (print-clojure code))
+  (println (str b))
+  (pp/pprint b))
