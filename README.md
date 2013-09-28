@@ -6,7 +6,7 @@ Structural editing stuff.
 
 ## power animal
 
-<img alt="parenthescope." src="http://i.imgur.com/oY7JJGW.jpg"></img>
+<img width="240" alt="parenthescope." src="http://i.imgur.com/oY7JJGW.jpg"></img>
 
 ## steps
 
