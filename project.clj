@@ -6,5 +6,7 @@
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [org.clojure/data.finger-tree "0.0.1"]
                  [transduce "0.1.0"]
-                 [tailrecursion/javelin-clj "1.0.0"]]
+                 [org.clojure/core.async "0.1.222.0-83d0c2-alpha"]
+                 [tailrecursion/javelin-clj "1.0.0"]
+                 [org.clojure/jvm.tools.analyzer "0.5.1"]]
   :main tailrecursion.parenthescope/demo) 
