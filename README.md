@@ -10,7 +10,7 @@ Structural editing stuff.
 
 ## steps
 
-<img src="https://www.lucidchart.com/publicSegments/view/5246f332-11ec-4699-b54a-01c20a009763/image.png"></img>
+<img src="https://www.lucidchart.com/publicSegments/view/5246f686-bc38-4d1f-8536-6fde0a00952e/image.png"></img>
 
 ## character rendering
 
