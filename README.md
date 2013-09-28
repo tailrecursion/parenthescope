@@ -8,6 +8,10 @@ Structural editing stuff.
 
 <img alt="parenthescope." src="http://i.imgur.com/oY7JJGW.jpg"></img>
 
+## steps
+
+<img src="https://www.lucidchart.com/publicSegments/view/5246f018-125c-4367-95b3-50120a00cc7b/image.png"></img>
+
 ## character rendering
 
 tricky.
