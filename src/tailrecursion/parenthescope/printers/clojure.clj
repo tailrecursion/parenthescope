@@ -7,9 +7,13 @@
 (defn assoc-in! [^WeakHashMap m [k & ks] v]
   (doto m (.put k (assoc-in (.get m k) ks v))))
 
-(declare ^:dynamic *count*
-         ^:dynamic *bounds*
-         ^:dynamic *index*)
+(declare
+ ^{:doc "Thunk that returns the current length of the output buffer." :dynamic true}
+ *count*
+ ^{:doc "WeakHashMap of objects to maps of :start/:end indexes within the output buffer."}
+ *bounds*
+ ^{:doc "Sorted map of indexes in the output buffer to a vector of objects at index in visibility order."}
+ *index*)
 
 (defmulti pprint first)
 
@@ -18,7 +22,8 @@
     (assoc-in! *bounds* [obj :start] point)
     point))
 
-(defn merge-index [index start end obj]
+(defn merge-index
+  [index start end obj]
   (let [points (map vector (range start end) (repeat obj))]
     (reduce (fn [m [i o]] (update-in m [i] (fnil conj []) o)) index points)))
 
