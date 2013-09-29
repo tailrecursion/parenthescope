@@ -8,11 +8,14 @@
   (doto m (.put k (assoc-in (.get m k) ks v))))
 
 (declare
- ^{:doc "Thunk that returns the current length of the output buffer." :dynamic true}
+ ^{:doc "Thunk that returns the current length of the output buffer."
+   :dynamic true}
  *count*
- ^{:doc "WeakHashMap of objects to maps of :start/:end indexes within the output buffer."}
+ ^{:doc "WeakHashMap of objects to maps of :start/:end indexes within the output buffer."
+   :dynamic true}
  *bounds*
- ^{:doc "Sorted map of indexes in the output buffer to a vector of objects at index in visibility order."}
+ ^{:doc "Sorted map of indexes in the output buffer to a vector of objects at index in visibility order."
+   :dynamic true}
  *index*)
 
 (defmulti pprint first)
