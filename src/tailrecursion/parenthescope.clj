@@ -67,7 +67,7 @@
     (flow/cell current-zipper  (get ?zippers ?cursor))
     (flow/cell printed-zippers (mapv (comp print-clojure z/root) ?zippers))
     (flow/cell strings         (mapv str ?printed-zippers))
-    (flow/cell offsets         (vec (cons 0 (map count ?strings))))
+    (flow/cell offsets         (vec (cons 0 (map + (iterate inc 1) (map count ?strings)))))
     (flow/cell current-printed (?printed-zippers ?cursor))
     (flow/cell highlight-bounds
                (->> (z/node ?current-zipper)
@@ -75,7 +75,7 @@
                     ((juxt :start :end))
                     (mapv (partial + (get ?offsets ?cursor)))))
     (flow/cell top?            (identical? (z/root ?current-zipper) (z/node ?current-zipper)))
-    (flow/cell insert!         (.setText text (apply str ?strings)))
+    (flow/cell insert!         (.setText text (apply str (interpose \newline ?strings))))
     (flow/cell highlight!      (apply highlight! text ?highlight-bounds))
     (flow/cell debug!          (pp/pprint
                                 (hash-map :node (z/node ?current-zipper)
