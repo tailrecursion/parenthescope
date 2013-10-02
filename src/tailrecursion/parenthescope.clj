@@ -2,13 +2,13 @@
   (:require [tailrecursion.parenthescope.printers.clojure :refer [print-clojure]]
             [tailrecursion.parenthescope.printers :refer [object bounds page]]
             [clojure.zip :as z]
-            [clojure.core.async :as async :refer [thread <! >! >!! <!! chan go]]
             [clojure.contrib.dataflow :as flow]
             [tailrecursion.warp :as ! :refer [throw! *e*]]
-            [potemkin :refer [def-map-type]])
+            [potemkin :refer [def-map-type]]
+            [clojure.pprint :as pp])
   (:import (javax.swing JFrame JPanel JTextArea)
            (java.awt Font Color)
-           java.awt.event.KeyListener
+           (java.awt.event KeyListener MouseListener MouseMotionListener)
            javax.swing.text.DefaultHighlighter$DefaultHighlightPainter
            javax.swing.text.Highlighter$HighlightPainter))
 
@@ -24,11 +24,6 @@
     (.pack)
     (.setLocationByPlatform true)
     (.setVisible true)))
-
-(def bold-painter
-  (reify Highlighter$HighlightPainter
-    (paint [this g p0 p1 shape c]
-      (.setColor g Color/ORANGE))))
 
 (defn code-zip
   [root]
@@ -81,7 +76,10 @@
                     (mapv (partial + (get ?offsets ?cursor)))))
     (flow/cell top?            (identical? (z/root ?current-zipper) (z/node ?current-zipper)))
     (flow/cell insert!         (.setText text (apply str ?strings)))
-    (flow/cell highlight!      (apply highlight! text ?highlight-bounds))]))
+    (flow/cell highlight!      (apply highlight! text ?highlight-bounds))
+    (flow/cell debug!          (pp/pprint
+                                (hash-map :node (z/node ?current-zipper)
+                                          :bounds ?highlight-bounds)))]))
 
 (defn snapshot [df]
   (reduce (fn [m [k v]]
