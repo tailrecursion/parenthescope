@@ -35,7 +35,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def forms
-  '[(list (symbol "ns") (symbol "fibonacci"))
+  '[(comment "navigate with arrow keys")
+    (list (symbol "ns") (symbol "fibonacci"))
     (list (symbol "def")
           (symbol "fib")
           (list (symbol "->>")
@@ -67,7 +68,7 @@
     (flow/cell current-zipper  (get ?zippers ?cursor))
     (flow/cell printed-zippers (mapv (comp print-clojure z/root) ?zippers))
     (flow/cell strings         (mapv str ?printed-zippers))
-    (flow/cell offsets         (vec (cons 0 (map + (iterate inc 1) (map count ?strings)))))
+    (flow/cell offsets         (vec (cons 0 (reductions + (map (comp inc count) ?strings)))))
     (flow/cell current-printed (?printed-zippers ?cursor))
     (flow/cell highlight-bounds
                (->> (z/node ?current-zipper)
@@ -133,5 +134,4 @@
 (defn demo [& args]
   (def p (make-page text zips))
   (listen! text p)
-  (show text)
-  (.append text "\n;; navigate with arrow keys"))
+  (show text))

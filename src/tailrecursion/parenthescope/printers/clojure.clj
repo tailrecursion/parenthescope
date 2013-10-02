@@ -65,6 +65,9 @@
 (defmethod pprint 'char [[_ s :as obj]]
   (relate [:text (str "\\" s)] obj))
 
+(defmethod pprint 'comment [[_ s :as obj]]
+  (relate [:text (str ";; " s)] obj))
+
 (defn pprint-coll [l r obj contents]
   (relate
    [:group (concat [[:text l]]
