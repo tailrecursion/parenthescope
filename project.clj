@@ -8,5 +8,6 @@
                  [transduce "0.1.0"]
                  [org.clojure/core.async "0.1.222.0-83d0c2-alpha"]
                  [tailrecursion/javelin-clj "1.0.0"]
-                 [org.clojure/jvm.tools.analyzer "0.5.1"]]
+                 [org.clojure/jvm.tools.analyzer "0.5.1"]
+                 [potemkin "0.3.3"]]
   :main tailrecursion.parenthescope/demo) 

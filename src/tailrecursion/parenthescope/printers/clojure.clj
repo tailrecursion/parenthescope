@@ -1,14 +1,28 @@
 (ns tailrecursion.parenthescope.printers.clojure
   (:require [fipp.printer :refer [pprint-document]]
-            [tailrecursion.parenthescope.printers :refer [make-buffer]])
+            [tailrecursion.parenthescope.printers :refer [make-buffer]]
+            [potemkin :refer [def-map-type]])
   (:import java.util.WeakHashMap
+           java.lang.ref.WeakReference
            java.io.StringWriter))
 
-(defn assoc-in! [^WeakHashMap m [k & ks] v]
-  (doto m (.put k (assoc-in (.get m k) ks v))))
+(defn scan [f v]
+  (->> (range)
+       (map vector v)
+       (drop-while (comp (complement f) first))
+       first
+       second))
+
+(def-map-type IdenticalPList [m]
+  (get [_ k default]
+       (second (first (filter (comp (partial identical? k) first) (get m k)))))
+  (assoc [_ k v]
+    (IdenticalPList. (update-in m [k] (fnil conj ()) [k v])))
+  (dissoc [_ k])
+  (keys [_] (keys m)))
 
 (declare
- ^{:doc "Thunk that returns the current length of the output buffer."
+ ^{:doc "Thunk; returns the current length of the output buffer."
    :dynamic true}
  *count*
  ^{:doc "WeakHashMap of objects to maps of :start/:end indexes within the output buffer."
@@ -22,7 +36,7 @@
 
 (defn start! [obj]
   (let [point (*count*)]
-    (assoc-in! *bounds* [obj :start] point)
+    (swap! *bounds* assoc-in [obj :start] point)
     point))
 
 (defn merge-index
@@ -32,7 +46,7 @@
 
 (defn end! [start obj]
   (let [end (*count*)]
-    (assoc-in! *bounds* [obj :end] end)
+    (swap! *bounds* assoc-in [obj :end] end)
     (swap! *index* merge-index start end obj)))
 
 (defmacro relate [representation obj]
@@ -66,21 +80,36 @@
 
 (def defaults {:width 80})
 
-(defn print-clojure [code & [options]]
+(defn print-clojure [form & [options]]
   (let [sw (StringWriter.)
         countfn #(.length (str sw))
-        bounds (WeakHashMap.)
+        bounds (atom (IdenticalPList. {}))
         index (atom (sorted-map))]
     (binding [*count* countfn
               *bounds* bounds
               *index* index
               *out* sw]
-      (pprint-document (pprint code) (merge options defaults))
-      (make-buffer (str sw) @index bounds))))
+      (pprint-document (pprint form) (merge options defaults))
+      (make-buffer (str sw) @index @bounds))))
 
 (comment
   (require '[clojure.pprint :as pp])
   (require '[tailrecursion.parenthescope.printers :refer [object bounds page]])
+  (def forms
+    '((list (symbol "ns") (symbol "fibonacci"))
+      (list (symbol "def")
+            (symbol "fib")
+            (list (symbol "->>")
+                  (vector (long "0") (long "1"))
+                  (list (symbol "iterate")
+                        (list (symbol "fn")
+                              (vector (vector (symbol "a")
+                                              (symbol "b"))
+                                      (vector (symbol "b")
+                                              (list (symbol "+")
+                                                    (symbol "a")
+                                                    (symbol "b"))))))
+                  (list (symbol "map") (symbol "first"))))))
   (def code '(list (symbol "+") (long "1") (long "2")))
   (def b (print-clojure code))
   (println (str b))
