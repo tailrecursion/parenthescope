@@ -71,7 +71,7 @@
 
 ;; A sentinal value
 
-(def *empty-value* (java.lang.Object.))
+(def sentinel (java.lang.Object.))
 
 
 ;; Dataflow
@@ -120,7 +120,7 @@
   [df name]
   (let [cell (get-cell df name)
         result @(:value cell)]
-    (do (when (= *empty-value* result)
+    (do (when (= sentinel result)
           (throwf Exception "Cell named %s empty" name))
         result)))
 
@@ -130,7 +130,7 @@
   (let [cells (get-cells df name)
         results (map #(-> % :value deref) cells)]
     (do
-      (when (some #(= % *empty-value*) results)
+      (when (some #(= % sentinel) results)
         (throwf Exception "At least one empty cell named %s found" name))
       results)))
 
@@ -227,13 +227,13 @@
 
 ;;; Cell building
 
-(def *meta* {:type ::dataflow-cell})
+(def cell-meta {:type ::dataflow-cell})
 
 (defn build-source-cell
   "Builds a source cell"
   [name init]
   (with-meta (struct source-cell name (ref init) ::source-cell)
-             *meta*))
+             cell-meta))
 
 (defn- is-col-var?
   [symb]
@@ -293,14 +293,14 @@
 (defn build-standard-cell
   "Builds a standard cell"
   [name deps fun expr]
-  (with-meta (struct standard-cell name (ref *empty-value*) deps fun expr ::cell)
-             *meta*))
+  (with-meta (struct standard-cell name (ref sentinel) deps fun expr ::cell)
+             cell-meta))
 
 (defn build-validator-cell
   "Builds a validator cell"
   [deps fun expr]
   (with-meta (struct validator-cell ::validator deps fun expr ::validator-cell)
-             *meta*))
+             cell-meta))
 
 (defmacro cell
   "Build a standard cell, like this:
