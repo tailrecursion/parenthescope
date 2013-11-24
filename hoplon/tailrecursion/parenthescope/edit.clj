@@ -9,7 +9,7 @@
 (def point-stack  (atom []))
 
 (defn pop-stack! [stack n]
-  (let [ret (reverse (take-last n @stack))]
+  (let [ret (take-last n @stack)]
     (swap! stack #(vec (drop-last n %)))
     ret))
 
@@ -21,7 +21,7 @@
      (->>
        (apply
          (fn ~arglist ~@body)
-         (pop-stack! stack# ~(count arglist)))
+         (reverse (pop-stack! stack# ~(count arglist))))
        reverse
        (push-stack! stack#))))
 
