@@ -1,0 +1,27 @@
+body {
+  background-color: #1c1c1c;
+  color:            #8787af;
+  font-family:      monospace;
+  font-size:        125%;
+}
+
+#container {
+  width: 90ex;
+  margin: 0 auto;
+}
+
+.linenum {
+  color: #606060;
+}
+
+.symbol {
+  color: #8787af;
+}
+
+.keyword {
+  color: #afd7d7;
+}
+
+.string {
+  color: #5f87ff;
+}

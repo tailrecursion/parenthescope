@@ -1,0 +1,74 @@
+(page "index.html"
+  (:refer-clojure :exclude [symbol keyword list])
+  (:require
+    [tailrecursion.castra :refer [mkremote]]))
+
+(defc state   ::none)
+(defc error   ::none)
+(defc loading [])
+
+(defn pscope [name] (str "tailrecursion.parenthescope.core/" name))
+
+(def get-state (mkremote (pscope "get-state") state error loading))
+
+(cell= (print state))
+
+(get-state)
+
+(def expr
+  '(def fib [x]
+     (cond
+       (= x 0) 0
+       (= x 1) 1
+       :else (+ (fib (- x 1)) (fib (- x 2))))))
+
+(defelem symbol
+  [attr kids]
+  ((span :class "symbol") (first kids)))
+
+(defelem keyword
+  [attr kids]
+  ((span :class "keyword") (first kids)))
+
+(defelem string
+  [attr kids]
+  ((span :class "string") (first kids)))
+
+(defelem lparen
+  [attr kids]
+  (span "("))
+
+(defelem rparen
+  [attr kids]
+  (span ")"))
+
+(defelem space
+  [attr kids]
+  (span " "))
+
+(defelem list
+  [attr kids]
+  (let [cont  (div)
+        items (apply span kids)
+        this  (cont (lparen) items (rparen))]
+    (set! (.-nItems this) 0)
+    (on-append! this
+      (fn [attr kids]
+        (when (< 0 (.-nItems this))
+          (items " "))
+        (apply items (concat (interpose " " kids)))
+        (set! (.-nItems this) (+ (count kids) (.-nItems this)))))
+    (apply this attr kids)))
+
+(html
+  (head
+    (link :rel "stylesheet" :type "text/css" :href "main.css"))
+  (body
+    (div
+      :id "container"
+      (pre
+        (list
+          (keyword ":foo")
+          (symbol "bar")
+          )
+        ))))

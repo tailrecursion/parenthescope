@@ -3,7 +3,10 @@
 /checkouts
 pom.xml
 pom.xml.asc
+*.swp
 *.jar
 *.class
 /.lein-*
 /.nrepl-port
+/.boot/tmp
+/resources/public

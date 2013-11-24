@@ -1,0 +1,29 @@
+{:project       parenthescope
+ :version       "0.1.0"
+ :description   "Parenthescope."
+ :dependencies  [[org.clojure/clojurescript     "0.0-1934"]
+                 [tailrecursion/boot.task       "0.1.3"]
+                 [tailrecursion/hoplon          "4.0.3"]
+                 [rewrite-clj                   "0.3.4"]
+                 [fast-zip                      "0.3.0"]
+                 [fipp                          "0.4.1"]]
+ :require-tasks [[tailrecursion.boot.task       :refer :all]
+                 [tailrecursion.hoplon.boot     :refer :all]]
+ :src-paths     #{"hoplon"}
+ :src-static    #{"resources/static"}
+ :public        "resources/public"
+ :tasks         {:server
+                 {:doc "Start server (port 33333)."
+                  :main [tailrecursion.parenthescope.server/run-task]}
+                 :development
+                 {:doc "Build hoplon (dev)."
+                  :main [:hoplon {:prerender      false
+                                  :warnings       true
+                                  :pretty-print   true
+                                  :optimizations  :whitespace}]}
+                 :production
+                 {:doc "Build hoplon (pro)."
+                  :main [:hoplon {:prerender      true
+                                  :warnings       true
+                                  :pretty-print   false
+                                  :optimizations  :advanced}]}}}
