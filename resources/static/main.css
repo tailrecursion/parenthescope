@@ -10,6 +10,9 @@ body {
   margin: 0 auto;
 }
 
+.text {
+}
+
 .linenum {
   color: #606060;
 }
@@ -25,3 +28,14 @@ body {
 .string {
   color: #5f87ff;
 }
+
+.empty.point {
+  margin-right: -1px;
+  border-right: 1px solid gold;
+}
+
+.point {
+  color: black;
+  background-color: gold;
+}
+

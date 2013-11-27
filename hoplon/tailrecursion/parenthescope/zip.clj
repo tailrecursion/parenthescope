@@ -1,8 +1,11 @@
 (ns tailrecursion.parenthescope.zip
   (:refer-clojure :exclude [type])
   (:require
-    [fast-zip.core    :as zip]
-    [clojure.pprint   :as pprint]))
+    [fast-zip.core              :as zip]
+    [clojure.pprint             :as pprint]
+    [tailrecursion.javelin-clj  :refer [defc defc= cell cell=]]))
+
+(defc last-col nil)
 
 (def zipclass
   (class (zip/zipper nil nil nil nil)))
@@ -14,8 +17,9 @@
 (defn rights?   [z] (and (seq (zip/rights z)) z))
 (defn lefts?    [z] (and (seq (zip/lefts z)) z))
 
-(defn node      [z] (when z (zip/node z)))
-(defn siblings  [z] (when z (concat (zip/lefts z) (zip/rights z))))
+(defn root      [z] (when (zipper? z) (zip/root z)))
+(defn node      [z] (when (zipper? z) (zip/node z)))
+(defn siblings  [z] (when (zipper? z) (concat (zip/lefts z) (zip/rights z))))
 
 (defn col       [z] (:col   (zip/node z)))
 (defn row       [z] (:row   (zip/node z)))
@@ -25,63 +29,44 @@
 (defn type      [z] (:type  (zip/node z)))
 (defn colr      [z] (let [n (zip/node z)] (+ (:col n) (count (:text n)))))
 
-(defn loc=
-  ([x y]
-   (and (= (col x) (col y)) (= (row x) (row y))))
-  ([x y & more]
-   (reduce loc= (list* x y more))))
+(defn left      [z] (or (zip/left       z) z))
+(defn leftmost  [z] (or (zip/leftmost   z) z))
+(defn begin     [z] (if (lefts? z) (begin (zip/left z)) z))
+(defn right     [z] (or (zip/right      z) z))
+(defn rightmost [z] (or (zip/rightmost  z) z))
+(defn end       [z] (if (rights? z) (end (zip/right z)) z))
+(defn up        [z] (or (zip/up         z) z))
+(defn down      [z] (or (zip/down       z) z))
 
-(defn upmost [z]
-  (loop [z z]
-    (let [z* (zip/up z)]
-      (if-not z* z (recur z*)))))
+(defn root-loc [z]
+  (loop [z z] (or (root? z) (recur (zip/up z)))))
 
 (defn zip-seq [z]
-  (loop [z* (zip/next z), zs [z]]
-    (or (and (root? z*) zs)
-        (recur (zip/next z*) (conj zs z*)))))
+  (let [z (root-loc z)]
+    (loop [z (zip/next z), ret [z]]
+      (cond (zip/end? z)  (conj ret z)
+            (root? z)     z
+            :else         (recur (zip/next z) (conj ret z))))))
 
-(defn nav-until [z break? f]
-  (loop [z z] (if (break? z) z (recur (f z)))))
+(defn xy-seq [z]
+  (->> (zip-seq z)
+    (remove zip/branch?)
+    (reduce #(assoc %1 [(row %2) (col %2)] %2) {})))
 
-(defn nav-right [z]
-  (if (branch? z)
-    (or (zip/right z) z)
-    (loop [z* (zip/next z)]
-      (cond (root? z*)        z
-            (zip/branch? z*)  (recur (zip/next z*))
-            :else             z*))))
+(defn xy-nav [z row? col?]
+  (or (branch? z)
+      (let [xy  (xy-seq z)]
+        (when-let [r (row? (map first (keys xy)))]
+          (get xy [r (col? (map second (filter #(= r (first %)) (keys xy))))])))))
 
-(defn nav-left [z]
-  (if (branch? z)
-    (or (zip/left z) z)
-    (loop [z* (zip/prev z)]
-      (cond (nil? z*)         z
-            (zip/branch? z*)  (recur (zip/prev z*))
-            :else             z*))))
+(defn max<=   [v xs]  (->> xs sort (take-while #(<= % v)) last))
+(defn min>=   [v xs]  (->> xs sort (drop-while #(< % v)) first))
+(defn set-col [z]     (when z (reset! last-col (col z)) z))
 
-(defn nav-down [z]
-  (if (branch? z)
-    (nav-right z)
-    (let [[y x] ((juxt row col) z)]
-      (->> (upmost z) zip-seq (filter #(and (row %) (< y (row %))))
-           (group-by row) (#(when (seq %) (get % (apply min (keys %)))))
-           (sort-by #(Math/abs (- x (col %)))) first (#(or % z))))))
+(defn xy-left   [z] (or (set-col (xy-nav z #(max<= (row z) %) #(max<= (dec (col z)) %))) z))
+(defn xy-right  [z] (or (set-col (xy-nav z #(max<= (row z) %) #(min>= (colr z) %))) z))
+(defn xy-up     [z] (or (xy-nav z #(max<= (dec (row z)) %) #(max<= @last-col %)) z))
+(defn xy-down   [z] (or (xy-nav z #(min>= (inc (row z)) %) #(max<= @last-col %)) z))
+(defn xy-begin  [z] (or (set-col (xy-nav z #(max<= (row z) %) #(apply min %))) z))
+(defn xy-end    [z] (or (set-col (xy-nav z #(max<= (row z) %) #(apply max %))) z))
 
-(defn nav-up [z]
-  (if (branch? z)
-    (nav-left z)
-    (let [[y x] ((juxt row col) z)]
-      (->> (upmost z) zip-seq (filter #(and (row %) (> y (row %))))
-           (group-by row) (#(when (seq %) (get % (apply max (keys %)))))
-           (sort-by #(Math/abs (- x (col %)))) first (#(or % z))))))
-
-(defn nav-out [z]
-  (let [z* (zip/up z)]
-    (if (root? z*) z z*)))
-
-(defn nav-in [z]
-  (if-not (branch? z) z (zip/down z)))
-
-(defn nav-delete [z]
-  (zip/remove z))

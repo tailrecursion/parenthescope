@@ -1,74 +1,46 @@
 (page "index.html"
+  (:refer-hoplon :exclude [init])
   (:refer-clojure :exclude [symbol keyword list])
   (:require
+    [clojure.string :as string]
     [tailrecursion.castra :refer [mkremote]]))
 
-(defc state   ::none)
-(defc error   ::none)
-(defc loading [])
+(defc   state       ::none)
+(defc   error       ::none)
+(defc   loading     [])
 
-(defn pscope [name] (str "tailrecursion.parenthescope.core/" name))
+(def    psym        #(str "tailrecursion.parenthescope.core" "/" %))
+(def    get-state   (mkremote (psym "get-state") state error loading))
 
-(def get-state (mkremote (pscope "get-state") state error loading))
+(defn node->span [n]
+  (let [classes (->> n :style
+                  (concat (when (:point n) [:point]))
+                  (map name)
+                  (string/join " "))]
+    (span :class classes (:text n))))
 
-(cell= (print state))
+(defn screen [nodes]
+  (when (vector? nodes)
+    (let [body (.. (js/jQuery "#container") empty (get 0))]
+      (doseq [n nodes] (body (if (map? n) (node->span n) n))))))
 
-(get-state)
+(defn init []
+  (cell= (when-let [e (:trace error)] (print e)))
+  (cell= (screen state))
+  (on! (.-body js/document)
+       :keypress
+       #(get-state (.fromCharCode js/String (.-which %))))
+  (js/setInterval #(get-state nil) 250))
 
-(def expr
-  '(def fib [x]
-     (cond
-       (= x 0) 0
-       (= x 1) 1
-       :else (+ (fib (- x 1)) (fib (- x 2))))))
-
-(defelem symbol
-  [attr kids]
-  ((span :class "symbol") (first kids)))
-
-(defelem keyword
-  [attr kids]
-  ((span :class "keyword") (first kids)))
-
-(defelem string
-  [attr kids]
-  ((span :class "string") (first kids)))
-
-(defelem lparen
-  [attr kids]
-  (span "("))
-
-(defelem rparen
-  [attr kids]
-  (span ")"))
-
-(defelem space
-  [attr kids]
-  (span " "))
-
-(defelem list
-  [attr kids]
-  (let [cont  (div)
-        items (apply span kids)
-        this  (cont (lparen) items (rparen))]
-    (set! (.-nItems this) 0)
-    (on-append! this
-      (fn [attr kids]
-        (when (< 0 (.-nItems this))
-          (items " "))
-        (apply items (concat (interpose " " kids)))
-        (set! (.-nItems this) (+ (count kids) (.-nItems this)))))
-    (apply this attr kids)))
+(init)
 
 (html
   (head
     (link :rel "stylesheet" :type "text/css" :href "main.css"))
   (body
     (div
-      :id "container"
       (pre
-        (list
-          (keyword ":foo")
-          (symbol "bar")
-          )
+        :id "container"
+        (span "hello") "\n"
+        (span "world!")
         ))))

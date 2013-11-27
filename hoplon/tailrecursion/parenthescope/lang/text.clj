@@ -35,10 +35,3 @@
 (defn zip->string [z]
   (->> z pprint (map #(if (map? %) (:text %) %)) (apply str)))
 
-(def edit-ops
-  {:string->zip (edit/op [s] [(string->zip s)])
-   :zip->string (edit/op [z] [(zip->string z)])
-   :pprint      (edit/op [z] [(pprint z)])})
-
-(defn init []
-  (swap! edit/opmaps assoc-in [:edit :text] edit-ops))
