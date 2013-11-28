@@ -9,29 +9,25 @@
 (defn make-node [x]
   (let [s (str x)
         t (if (string/blank? s) :empty :text)]
-    {:style [t], :edit :text, :type :node, :text s}))
+    {:style [t], :type :node, :text s}))
 
 (defn node-maker [j]
   (fn [i x]
     (assoc (make-node x) :row j :col i)))
 
-(defn mark-point [x]
-  (walk/postwalk #(if (map? %) (assoc % :point true) %) x))
-
-(defn string->zip [x]
+(defmethod edit/string->zip :text [_ x]
   (->>
     (string/split x #"\n")
     (map-indexed
       (fn [j x]
         (map-indexed (node-maker j) (or (seq x) [""]))))
+    (#(with-meta % {:file-type :text}))
     zip/seq-zip
     zip/down
     zip/down))
 
-(defn pprint [z]
-  (let [z* (zip/edit z mark-point)]
-    (vec (mapcat identity (interpose ["\n"] (zip/root z*))))))
+(defmethod edit/pprint :text [z]
+  (vec (mapcat identity (interpose ["\n"] (zip/root z)))))
 
-(defn zip->string [z]
-  (->> z pprint (map #(if (map? %) (:text %) %)) (apply str)))
-
+(defmethod edit/zip->string :text [z]
+  (->> z edit/pprint (map #(if (map? %) (:text %) %)) (apply str)))

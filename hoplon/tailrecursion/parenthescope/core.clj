@@ -4,54 +4,46 @@
     [tailrecursion.castra
      :refer [defn ex error *session*]]
     [tailrecursion.javelin-clj              :refer :all]
+    [tailrecursion.parenthescope.edit       :refer :all]
+    [clojure.walk                           :as walk]
     [tailrecursion.parenthescope.zip        :as zip]
-    [tailrecursion.parenthescope.edit       :as edit]
     [tailrecursion.parenthescope.lang.text  :as text]))
 
-(defn op1 [f] #(do (edit/push! edit/buffer (fn [[x & xs]] (conj xs (f x)))) nil))
-
-(def left           (op1 zip/left))
-(def begin          (op1 zip/begin))
-(def right          (op1 zip/right))
-(def end            (op1 zip/end))
-(def up             (op1 zip/up))
-(def down           (op1 zip/down))
-
-(def xy-left        (op1 zip/xy-left))
-(def xy-right       (op1 zip/xy-right))
-(def xy-up          (op1 zip/xy-up))
-(def xy-down        (op1 zip/xy-down))
-(def xy-begin       (op1 zip/xy-begin))
-(def xy-end         (op1 zip/xy-end))
+(def dfl-keys
+  {:normal
+   {\h (op1 buffer zip/xy-left)
+    \l (op1 buffer zip/xy-right)
+    \j (op1 buffer zip/xy-down)
+    \k (op1 buffer zip/xy-up)
+    \^ (op1 buffer zip/xy-begin)
+    \$ (op1 buffer zip/xy-end)
+    \z #(do (push! modes :zipper) nil)}
+   :zipper
+   {\h (op1 buffer zip/left)
+    \l (op1 buffer zip/right)
+    \j (op1 buffer zip/down)
+    \k (op1 buffer zip/up)
+    \^ (op1 buffer zip/begin)
+    \$ (op1 buffer zip/end)
+    \z #(do (push! modes drop1) nil)}})
 
 (defn init []
-  (reset!
-    edit/config-keys
-    {:normal
-     {\h xy-left
-      \l xy-right
-      \j xy-down
-      \k xy-up
-      \^ xy-begin
-      \$ xy-end
-      \z #(do (edit/push! edit/mode :zipper) nil)}
-     :zipper
-     {\h left
-      \l right
-      \j down
-      \k up
-      \^ begin
-      \$ end
-      \z #(do (edit/push! edit/mode edit/drop1) nil)}})
-
-  (swap! edit/mode conj :normal)
-  (edit/push! edit/buffer (text/string->zip "asdf\n\nqwer\nzxcv")))
+  (reset! config-keys dfl-keys)
+  (push! buffer (string->zip :text "asdf\n\nqwer\nzxcv"))
+  (swap! modes conj :normal))
 
 (def allow (constantly true))
 
+(defn mark-point [z]
+  (-> (walk/postwalk #(if (map? %) (assoc % :point true) %) z)
+      (with-meta (meta z))))
+
+;(cell= (prn (and point [(meta (zip/root point)) (zip/node point)])))
+
+(defc= printed  (when point (pprint (zip/edit point mark-point))))
+(defc= state    {:mode mode :file-type file-type :point printed})
+
 (defn get-state [[key & _]]
   {:rpc (allow)}
-  (when key (edit/do! key))
-  (text/pprint @edit/point))
-
-(init)
+  (when key (process-key key))
+  @state)

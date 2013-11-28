@@ -1,5 +1,6 @@
 (ns tailrecursion.parenthescope.server
   (:require
+    [tailrecursion.parenthescope.core :as core]
     [ring.adapter.jetty               :refer [run-jetty]]
     [ring.middleware.resource         :refer [wrap-resource]]
     [ring.middleware.session          :refer [wrap-session]]
@@ -27,6 +28,7 @@
   [{:keys [port public-path]
     :or {port 33333 public-path "resources/public"}
     :as boot}]
+  (core/init)
   (.mkdirs (java.io.File. public-path))
   (start-server port public-path)
   identity)

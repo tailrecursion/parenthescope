@@ -9,6 +9,8 @@
 (defc   error       ::none)
 (defc   loading     [])
 
+(defc asdf [{:item "one"} {:item "two"}])
+
 (def    psym        #(str "tailrecursion.parenthescope.core" "/" %))
 (def    get-state   (mkremote (psym "get-state") state error loading))
 
@@ -24,23 +26,23 @@
     (let [body (.. (js/jQuery "#container") empty (get 0))]
       (doseq [n nodes] (body (if (map? n) (node->span n) n))))))
 
+(defn dummy2 [x] (inc x))
+
 (defn init []
   (cell= (when-let [e (:trace error)] (print e)))
-  (cell= (screen state))
+  (cell= (screen (:point state)))
   (on! (.-body js/document)
        :keypress
        #(get-state (.fromCharCode js/String (.-which %))))
-  (js/setInterval #(get-state nil) 250))
+  (get-state nil))
 
 (init)
+
+(defc asdf [{:a 1} {:a 2}])
 
 (html
   (head
     (link :rel "stylesheet" :type "text/css" :href "main.css"))
   (body
     (div
-      (pre
-        :id "container"
-        (span "hello") "\n"
-        (span "world!")
-        ))))
+      (pre :id "container"))))

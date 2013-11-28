@@ -1,7 +1,19 @@
 (ns tailrecursion.parenthescope.edit
+  (:refer-clojure :exclude [accessor])
   (:require
-    [tailrecursion.parenthescope.zip  :as zip]
-    [tailrecursion.javelin-clj        :refer [cell cell= defc defc=]]))
+    [fast-zip.core              :as zip]
+    [tailrecursion.javelin-clj  :refer :all]))
+
+(def zipclass   (class (zip/zipper nil nil nil nil)))
+(def zipper?    #(and % (instance? zipclass %) %))
+(def first-arg* (fn [x & _] x))
+(def file-type* (comp :file-type meta zip/root))
+
+(defmulti string->zip first-arg*)
+(defmulti zip->string file-type*)
+(defmulti pprint      file-type*)
+
+(defmethod pprint :default [z] (prn [:debug (file-type* z) (meta (zip/root z)) (zip/root z)]) (zip/root z))
 
 (defn apply-stack [this x]
   (if-not (fn? x)
@@ -14,27 +26,20 @@
 (defn drop1 [[x & xs :as items]]
   (if (seq xs) xs items))
 
-(defc buffer      ())
-(defc mode        ())
-(defc config-keys {})
+(defn op1 [stack f]
+  #(do (push! stack (fn [[x & xs]] (conj xs (f x)))) nil))
 
-(defc= point      (->> buffer (drop-while (complement zip/zipper?)) first))
-(defc= keymap     (get config-keys (first mode)))
-(defc= dfl-key    (get keymap :default))
+(defc buffer        ())
+(defc modes         ())
+(defc config-keys   {})
 
-(defn set-last-col [x] (reset! zip/last-col x))
+(defc= mode         (first modes))
+(defc= point        (->> buffer (drop-while (complement zipper?)) first))
+(defc= file-type    (and (zipper? point) (file-type* point)))
+(defc= keymap       (get config-keys mode))
+(defc= default-key  (get keymap :default))
 
-(cell= (when (and (nil? zip/last-col)
-                  (zip/zipper? point)
-                  (not (zip/branch? point)))
-         (set-last-col (zip/col point))))
-
-(defn prompt []
-  (->> @point zip/node prn)
-  (printf "%s > " (first @mode))
-  (flush))
-
-(defn do! [key]
-  (if-let [f (or (get @keymap key) (and @dfl-key (@dfl-key key)))]
+(defn process-key [key]
+  (if-let [f (or (get @keymap key) (and @default-key (@default-key key)))]
     (f)
-    (printf "no key mapping for %s\n" (pr-str key))))
+    (throw (Exception. (format "no key mapping for %s\n" (pr-str key))))))
