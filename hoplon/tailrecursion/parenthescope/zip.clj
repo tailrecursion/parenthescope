@@ -2,7 +2,6 @@
   (:refer-clojure :exclude [accessor type])
   (:require
     [fast-zip.core                    :as zip]
-    [clojure.pprint                   :as pprint]
     [tailrecursion.javelin-clj        :refer :all]
     [tailrecursion.parenthescope.edit :as edit]))
 
